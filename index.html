@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kuis Interactive - Interaksi Masyarakat Abad ke-21</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        quizizz: {
+                            purple: '#46178f',
+                            darkPurple: '#2d095c',
+                            lightPurple: '#8854d0',
+                            accentPink: '#d946ef',
+                            correctGreen: '#10b981',
+                            wrongRed: '#ef4444',
+                            yellow: '#f59e0b',
+                            cardBg: '#1e1b4b'
+                        }
+                    },
+                    fontFamily: {
+                        fredoka: ['Fredoka', 'sans-serif'],
+                        jakarta: ['Plus Jakarta Sans', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: linear-gradient(135deg, #2d095c 0%, #46178f 50%, #1e1b4b 100%);
+            min-height: 100vh;
+            color: #ffffff;
+            user-select: none;
+        }
+
+        .title-font {
+            font-family: 'Fredoka', sans-serif;
+        }
+
+        /* Custom Quizizz Button Effects */
+        .btn-quizizz {
+            box-shadow: 0 6px 0 rgba(0, 0, 0, 0.3);
+            transition: all 0.1s ease-in-out;
+        }
+        .btn-quizizz:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        /* Option Color Variations */
+        .option-btn-0 { background-color: #2563eb; border-color: #1d4ed8; } /* Blue */
+        .option-btn-1 { background-color: #059669; border-color: #047857; } /* Teal/Green */
+        .option-btn-2 { background-color: #d97706; border-color: #b45309; } /* Amber */
+        .option-btn-3 { background-color: #dc2626; border-color: #b91c1c; } /* Red */
+
+        .option-btn-0:hover:not(:disabled) { background-color: #1d4ed8; }
+        .option-btn-1:hover:not(:disabled) { background-color: #047857; }
+        .option-btn-2:hover:not(:disabled) { background-color: #b45309; }
+        .option-btn-3:hover:not(:disabled) { background-color: #b91c1c; }
+
+        .correct-selected {
+            background-color: #10b981 !important;
+            border-color: #059669 !important;
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.6) !important;
+            animation: pulse-correct 0.5s ease-in-out;
+        }
+
+        .wrong-selected {
+            background-color: #ef4444 !important;
+            border-color: #dc2626 !important;
+            animation: shake 0.4s ease-in-out;
+        }
+
+        .correct-dimmed {
+            background-color: #059669 !important;
+            opacity: 0.9;
+            border: 2px solid #6ee7b7 !important;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-8px); }
+            40%, 80% { transform: translateX(8px); }
+        }
+
+        @keyframes pulse-correct {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #8854d0;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a855f7;
+        }
+
+        /* Glassmorphism containers */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen justify-between p-3 sm:p-6 overflow-x-hidden">
+
+    <!-- Sound Effects Synthesizer (Web Audio API) -->
+    <script>
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new AudioContext();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        function playSound(type) {
+            try {
+                initAudio();
+                if (!audioCtx) return;
+
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                const now = audioCtx.currentTime;
+
+                if (type === 'click') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(400, now);
+                    osc.frequency.exponentialRampToValueAtTime(800, now + 0.05);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                    osc.start(now);
+                    osc.stop(now + 0.05);
+                } else if (type === 'correct') {
+                    // Arpeggio sound
+                    const freqs = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                    freqs.forEach((freq, idx) => {
+                        const noteOsc = audioCtx.createOscillator();
+                        const noteGain = audioCtx.createGain();
+                        noteOsc.connect(noteGain);
+                        noteGain.connect(audioCtx.destination);
+                        
+                        const startTime = now + (idx * 0.07);
+                        noteOsc.type = 'triangle';
+                        noteOsc.frequency.setValueAtTime(freq, startTime);
+                        noteGain.gain.setValueAtTime(0.2, startTime);
+                        noteGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.2);
+                        
+                        noteOsc.start(startTime);
+                        noteOsc.stop(startTime + 0.2);
+                    });
+                } else if (type === 'wrong') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(180, now);
+                    osc.frequency.linearRampToValueAtTime(110, now + 0.25);
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                } else if (type === 'finish') {
+                    const notes = [440, 554.37, 659.25, 880];
+                    notes.forEach((f, i) => {
+                        const o = audioCtx.createOscillator();
+                        const g = audioCtx.createGain();
+                        o.connect(g);
+                        g.connect(audioCtx.destination);
+                        const t = now + (i * 0.12);
+                        o.type = 'sine';
+                        o.frequency.setValueAtTime(f, t);
+                        g.gain.setValueAtTime(0.2, t);
+                        g.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+                        o.start(t);
+                        o.stop(t + 0.4);
+                    });
+                }
+            } catch(e) {
+                console.log("Audio play error:", e);
+            }
+        }
+    </script>
+
+    <!-- MAIN CONTAINER -->
+    <div id="app" class="max-w-4xl mx-auto w-full my-auto">
+
+        <!-- START SCREEN -->
+        <div id="start-screen" class="glass-panel rounded-3xl p-6 sm:p-10 text-center shadow-2xl relative overflow-hidden">
+            <div class="absolute -top-12 -right-12 w-40 h-40 bg-purple-500/20 rounded-full blur-2xl"></div>
+            <div class="absolute -bottom-12 -left-12 w-40 h-40 bg-pink-500/20 rounded-full blur-2xl"></div>
+
+            <div class="inline-block bg-purple-600/40 text-purple-200 text-xs sm:text-sm font-bold tracking-widest px-4 py-1.5 rounded-full mb-4 border border-purple-400/30 uppercase">
+                IPS Kelas IX • Kurikulum Merdeka
+            </div>
+
+            <h1 class="title-font text-3xl sm:text-5xl font-extrabold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-pink-400 to-purple-200 drop-shadow">
+                KUIS INTERAKSI MASYARAKAT ABAD KE-21
+            </h1>
+
+            <p class="text-purple-200 text-sm sm:text-base mb-8 max-w-xl mx-auto leading-relaxed">
+                Uji pemahamanmu mengenai Konsep Masyarakat Jaringan, Ciri-Ciri, dan Pilar Utama <span class="font-bold text-yellow-300">Respect, Educate, Protect</span>!
+            </p>
+
+            <div class="grid grid-cols-2 gap-3 max-w-md mx-auto mb-8 text-center text-xs sm:text-sm font-semibold">
+                <div class="bg-purple-900/50 p-3.5 rounded-2xl border border-purple-500/30">
+                    <i class="fa-solid fa-list-check text-yellow-400 text-xl mb-1 block"></i>
+                    <span>20 Soal Pilihan Ganda</span>
+                </div>
+                <div class="bg-purple-900/50 p-3.5 rounded-2xl border border-purple-500/30">
+                    <i class="fa-solid fa-book-open text-emerald-400 text-xl mb-1 block"></i>
+                    <span>Pembahasan Lengkap</span>
+                </div>
+            </div>
+
+            <button onclick="startQuiz()" class="btn-quizizz w-full sm:w-auto px-10 py-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-extrabold text-xl rounded-2xl cursor-pointer transition transform hover:scale-105 active:scale-95 shadow-lg border-b-4 border-teal-800">
+                <i class="fa-solid fa-play mr-2"></i> MULAI KUIS SEKARANG
+            </button>
+        </div>
+
+        <!-- QUIZ GAMEPLAY SCREEN -->
+        <div id="quiz-screen" class="hidden flex-col gap-4">
+
+            <!-- Top Header Bar (Score & Progress Only - No Timer) -->
+            <div class="glass-panel rounded-2xl p-4 flex flex-wrap justify-between items-center gap-3">
+                <!-- Question Counter -->
+                <div class="flex items-center gap-2">
+                    <span id="question-number-badge" class="bg-purple-600 text-white font-extrabold text-sm sm:text-base px-3.5 py-1 rounded-xl">
+                        1/20
+                    </span>
+                    <span class="text-xs sm:text-sm text-purple-200 font-semibold hidden sm:inline">Soal</span>
+                </div>
+
+                <!-- Score & Streak -->
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-1.5 bg-purple-900/60 px-3 py-1 rounded-xl">
+                        <i class="fa-solid fa-fire text-orange-500 text-lg"></i>
+                        <span id="streak-count" class="font-bold text-orange-400">0</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 bg-purple-900/60 px-3.5 py-1 rounded-xl">
+                        <i class="fa-solid fa-trophy text-yellow-400 text-lg"></i>
+                        <span id="score-text" class="title-font text-yellow-300 font-bold text-lg">0</span>
+                    </div>
+                </div>
+
+                <!-- Progress Bar Container -->
+                <div class="w-full bg-purple-950/80 h-2.5 rounded-full overflow-hidden mt-1 border border-purple-800">
+                    <div id="progress-bar" class="bg-gradient-to-r from-pink-500 via-purple-400 to-emerald-400 h-full transition-all duration-300 rounded-full" style="width: 5%"></div>
+                </div>
+            </div>
+
+            <!-- Question Card -->
+            <div class="glass-panel rounded-3xl p-5 sm:p-8 shadow-2xl relative min-h-[160px] flex items-center justify-center text-center">
+                <h2 id="question-text" class="text-lg sm:text-2xl font-bold text-white leading-relaxed">
+                    <!-- Dynamic Question Text -->
+                </h2>
+            </div>
+
+            <!-- Answer Options Grid -->
+            <div id="options-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <!-- Dynamic Options Buttons -->
+            </div>
+
+            <!-- Immediate Feedback & Explanation Box -->
+            <div id="explanation-box" class="hidden glass-panel rounded-2xl p-5 border-l-8 transition-all duration-300 animate-fade-in">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center gap-2">
+                        <span id="feedback-icon" class="text-xl"></span>
+                        <h4 id="feedback-title" class="title-font font-bold text-lg sm:text-xl"></h4>
+                    </div>
+                    <button id="next-btn" onclick="nextQuestion()" class="btn-quizizz px-5 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-400 hover:to-indigo-500 text-white font-bold rounded-xl text-sm flex items-center gap-2">
+                        <span>Lanjut</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+                <p id="explanation-text" class="text-xs sm:text-sm text-purple-100 leading-relaxed bg-purple-950/40 p-3.5 rounded-xl border border-purple-800/40">
+                    <!-- Dynamic Explanation -->
+                </p>
+            </div>
+
+        </div>
+
+        <!-- RESULTS / SUMMARY SCREEN -->
+        <div id="result-screen" class="hidden glass-panel rounded-3xl p-6 sm:p-10 text-center shadow-2xl">
+            <div class="inline-block p-4 bg-purple-800/50 rounded-full mb-4 border border-purple-500/30">
+                <i class="fa-solid fa-award text-5xl text-yellow-400 animate-bounce"></i>
+            </div>
+
+            <h1 class="title-font text-3xl sm:text-4xl font-extrabold text-white mb-2">KUIS SELESAI!</h1>
+            <p id="result-subtitle" class="text-purple-200 text-sm sm:text-base mb-6">Hebat! Kamu telah menyelesaikan seluruh soal.</p>
+
+            <!-- Final Score Board -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+                <div class="bg-purple-900/60 p-4 rounded-2xl border border-purple-600/40">
+                    <span class="text-xs text-purple-300 uppercase font-bold block mb-1">Skor Akhir</span>
+                    <span id="final-score" class="title-font text-2xl sm:text-3xl font-extrabold text-yellow-300">0</span>
+                </div>
+                <div class="bg-purple-900/60 p-4 rounded-2xl border border-purple-600/40">
+                    <span class="text-xs text-purple-300 uppercase font-bold block mb-1">Akurasi</span>
+                    <span id="final-accuracy" class="title-font text-2xl sm:text-3xl font-extrabold text-emerald-400">0%</span>
+                </div>
+                <div class="bg-purple-900/60 p-4 rounded-2xl border border-purple-600/40">
+                    <span class="text-xs text-purple-300 uppercase font-bold block mb-1">Benar</span>
+                    <span id="final-correct" class="title-font text-2xl sm:text-3xl font-extrabold text-teal-300">0</span>
+                </div>
+                <div class="bg-purple-900/60 p-4 rounded-2xl border border-purple-600/40">
+                    <span class="text-xs text-purple-300 uppercase font-bold block mb-1">Salah</span>
+                    <span id="final-wrong" class="title-font text-2xl sm:text-3xl font-extrabold text-rose-400">0</span>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-col sm:flex-row gap-3 justify-center mb-8">
+                <button onclick="restartQuiz()" class="btn-quizizz px-8 py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-2xl flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span>Coba Lagi</span>
+                </button>
+                <button onclick="toggleReviewMode()" class="btn-quizizz px-8 py-3.5 bg-purple-700 hover:bg-purple-600 text-white font-extrabold rounded-2xl flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-list-check"></i>
+                    <span id="review-btn-text">Lihat Pembahasan Lengkap</span>
+                </button>
+            </div>
+
+            <!-- Review Section (Hidden by default) -->
+            <div id="review-section" class="hidden text-left mt-6 pt-6 border-t border-purple-700/50 space-y-4">
+                <h3 class="title-font text-xl font-bold text-yellow-300 mb-4 text-center">
+                    <i class="fa-solid fa-book mr-2"></i> Review Kunci Jawaban & Pembahasan
+                </h3>
+                <div id="review-list" class="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+                    <!-- Dynamic review items -->
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="text-center text-xs text-purple-300/70 mt-6 py-2">
+        IPS Kelas IX • Kurikulum Merdeka • Media Pembelajaran Abad ke-21
+    </footer>
+
+    <!-- QUIZ LOGIC & QUESTIONS DATA -->
+    <script>
+        const questionsData = [
+            {
+                id: 1,
+                question: "Istilah 'masyarakat jaringan' (Nettsamfunn) pertama kali disampaikan oleh sosiolog asal negara...",
+                options: ["Belanda", "Norwegia", "Spanyol", "Amerika Serikat"],
+                answer: 1,
+                explanation: "Istilah 'masyarakat jaringan' berasal dari kata Nettsamfunn yang pertama kali diperkenalkan oleh Stein Braten, seorang sosiolog dari Norwegia pada tahun 1981."
+            },
+            {
+                id: 2,
+                question: "Siapa sosiolog Norwegia yang pertama kali mencetuskan istilah 'Nettsamfunn' pada tahun 1981?",
+                options: ["Manuel Castells", "Jan Van Dijk", "Stein Braten", "Mike Ribble"],
+                answer: 2,
+                explanation: "Stein Braten merupakan sosiolog Norwegia yang merujuk masyarakat jaringan sebagai tipe masyarakat yang ditopang oleh teknologi informasi dan komunikasi."
+            },
+            {
+                id: 3,
+                question: "Dalam bukunya 'The Rise of The Network Society' (1996), Manuel Castells menyatakan bahwa masyarakat dunia telah bertransformasi dari era industri menuju era...",
+                options: ["Agraris", "Informasi", "Otomatisasi", "Siber"],
+                answer: 1,
+                explanation: "Manuel Castells (1996) menegaskan adanya transformasi besar masyarakat dunia dari era industri menuju era informasi."
+            },
+            {
+                id: 4,
+                question: "Menurut Manuel Castells, masyarakat jaringan didefinisikan sebagai struktur baru di mana individu-individu terhubung melalui...",
+                options: ["Pertemuan fisik secara intensif", "Simpul komunikasi berteknologi tinggi", "Kegiatan ekonomi pasar tradisional", "Aturan kebudayaan lokal daerah"],
+                answer: 1,
+                explanation: "Manuel Castells mendefinisikan masyarakat jaringan sebagai struktur masyarakat baru di mana individu terhubung melalui simpul komunikasi berteknologi tinggi sehingga tidak wajib bertemu langsung."
+            },
+            {
+                id: 5,
+                question: "Tokoh sosiolog asal Belanda yang mengemukakan ciri-ciri spesifik masyarakat jaringan adalah...",
+                options: ["Jan Van Dijk", "Stein Braten", "Manuel Castells", "Mike Ribble"],
+                answer: 0,
+                explanation: "Jan Van Dijk merupakan sosiolog asal Belanda yang memetakan karakteristik khas masyarakat jaringan."
+            },
+            {
+                id: 6,
+                question: "Berikut ini yang BUKAN merupakan ciri masyarakat jaringan menurut Jan Van Dijk adalah...",
+                options: ["Individualisasi", "Gaya hidup yang dinamis", "Jaringan koneksi tersebar ke seluruh wilayah", "Gaya hidup statis dan terisolasi secara geografis"],
+                answer: 3,
+                explanation: "Jan Van Dijk menyebut 3 ciri utama masyarakat jaringan: Individualisasi, Gaya hidup dinamis, dan Jaringan koneksi tersebar. Gaya hidup statis dan terisolasi bukanlah cirinya."
+            },
+            {
+                id: 7,
+                question: "Istilah 'Netizen' yang populer dalam masyarakat jaringan merupakan singkatan dari kata...",
+                options: ["Net Citizen / Warga Internet", "Network Citizen / Warga Jaringan", "Network Zone / Zona Jaringan", "Net Impression / Kesan Internet"],
+                answer: 0,
+                explanation: "Netizen merupakan akronim dari 'Net Citizen' yang diserap ke dalam bahasa Indonesia menjadi 'warganet' (warga internet)."
+            },
+            {
+                id: 8,
+                question: "Berdasarkan data estimasi penetrasi pengguna internet di Indonesia pada tahun 2026, tingkat penetrasinya mencapai...",
+                options: ["73,7%", "78,2%", "81,72%", "89,5%"],
+                answer: 2,
+                explanation: "Pada tahun 2026, tingkat penetrasi pengguna internet di Indonesia diproyeksikan mencapai 81,72% (sekitar 235,26 juta jiwa)."
+            },
+            {
+                id: 9,
+                question: "Berapa tingkat penetrasi pengguna internet di Indonesia pada tahun 2020 menurut data yang disajikan?",
+                options: ["73,7% (196,71 juta jiwa)", "77,0% (210,03 juta jiwa)", "79,5% (221,56 juta jiwa)", "80,66% (229,42 juta jiwa)"],
+                answer: 0,
+                explanation: "Data menunjukkan pada tahun 2020 penetrasi internet di Indonesia adalah 73,7% atau sebanyak 196,71 juta jiwa pengguna."
+            },
+            {
+                id: 10,
+                question: "Tiga prinsip utama yang merumuskan pilar interaksi di dunia digital menurut konsultan teknologi Mike Ribble adalah...",
+                options: ["Read, Write, Execute", "Respect, Educate, Protect", "React, Connect, Protect", "Research, Educate, Promote"],
+                answer: 1,
+                explanation: "Mike Ribble merumuskan tiga pilar pondasi dunia digital: Respect (menghargai), Educate (terdidik), dan Protect (perlindungan)."
+            },
+            {
+                id: 11,
+                question: "Siapakah tokoh yang merumuskan tiga pilar utama interaksi masyarakat di dunia digital (Respect, Educate, Protect)?",
+                options: ["Stein Braten", "Manuel Castells", "Mike Ribble", "Jan Van Dijk"],
+                answer: 2,
+                explanation: "Mike Ribble adalah seorang konsultan pendidikan di bidang teknologi yang merumuskan konsep tiga pilar digital (Respect, Educate, Protect)."
+            },
+            {
+                id: 12,
+                question: "Prinsip interaksi digital yang menekankan kewajiban untuk saling menghargai dan menghindari perilaku cyberbullying dinamakan...",
+                options: ["Respect", "Educate", "Protect", "Connect"],
+                answer: 0,
+                explanation: "Prinsip 'Respect' (menghargai) mewajibkan warganet untuk saling menghormati, sopan santun, dan menghindari perundungan siber (cyberbullying)."
+            },
+            {
+                id: 13,
+                question: "Berdasarkan tren data di Indonesia (2021-2026), persentase anak & remaja yang mengalami cyberbullying diproyeksikan melonjak pada tahun 2026 hingga...",
+                options: ["12,5%", "23,5%", "35,0%", "48,0%"],
+                answer: 3,
+                explanation: "Grafik data KemenPPPA/Kominfo/UNICEF memperlihatkan kenaikan drastis kasus cyberbullying anak & remaja hingga mencapai 48,0% pada tahun 2026."
+            },
+            {
+                id: 14,
+                question: "Prinsip 'Educate' dalam pilar etika digital berkaitan erat dengan...",
+                options: ["Menjaga kerahasiaan kata sandi (password)", "Tanggung jawab meningkatkan literasi digital dan berbagi hal positif", "Mengunci akun media sosial dari orang asing", "Menggunakan antivirus pada perangkat smartphone"],
+                answer: 1,
+                explanation: "Prinsip 'Educate' (terdidik) berfokus pada penggunaan teknologi secara cerdas untuk meningkatkan literasi digital serta menyebarkan konten yang positif dan edukatif."
+            },
+            {
+                id: 15,
+                question: "Dalam data kebocoran data pribadi (Doxxing), persentase kasus kebocoran data terbanyak (Data Leak) tercatat sebesar...",
+                options: ["9.5%", "16.8%", "76.3%", "12.3%"],
+                answer: 2,
+                explanation: "Berdasarkan grafik Doxxing APJII, bentuk penyalahgunaan terbesar adalah Data Leak (kebocoran data) yang menyumbang 76,3%."
+            },
+            {
+                id: 16,
+                question: "Prinsip yang bertujuan menjaga keamanan diri sendiri maupun pengguna lain di dunia digital dari ancaman kejahatan virtual adalah...",
+                options: ["Educate", "Respect", "Protect", "Communicate"],
+                answer: 2,
+                explanation: "Prinsip 'Protect' (perlindungan) bertujuan untuk membentengi keamanan diri dan warganet lain dari berbagai tindak kejahatan siber (cybercrime)."
+            },
+            {
+                id: 17,
+                question: "Upaya aktif mempelajari kebenaran berita sebelum membagikannya (anti-hoaks) merupakan wujud nyata penerapan prinsip...",
+                options: ["Respect", "Educate", "Protect", "Deceive"],
+                answer: 1,
+                explanation: "Mengedukasi diri untuk berpikir kritis dan menyaring berita sebelum menyebarkannya merupakan bagian dari penerapan prinsip Educate."
+            },
+            {
+                id: 18,
+                question: "Berdasarkan data APJII (2021-2026), tren persentase kasus kejahatan siber jenis Hacking pada tahun 2026 diperkirakan...",
+                options: ["Naik ke 25%", "Tetap di 14.3%", "Mengalami penurunan menjadi 7,8%", "Melonjak drastis hingga 50%"],
+                answer: 2,
+                explanation: "Grafik APJII menunjukkan kasus Hacking sempat mencapai puncak 14.3% pada 2025, namun diproyeksikan mengalami pengurangan besar menjadi 7,8% di tahun 2026."
+            },
+            {
+                id: 19,
+                question: "Tindakan membocorkan atau menyebarkan data pribadi milik orang lain seperti NIK KTP, alamat rumah, dan nomor HP secara liar di internet dinamakan kejahatan...",
+                options: ["Phishing", "Doxxing", "Hacking", "Scamming"],
+                answer: 1,
+                explanation: "Doxxing adalah kejahatan siber berupa publikasi data pribadi/sensitif seseorang (seperti KTP, alamat, nomor HP) tanpa izin ke publik."
+            },
+            {
+                id: 20,
+                question: "Ciri utama masyarakat jaringan yang memungkinkan interaksi tetap berlangsung tanpa tatap muka langsung adalah adanya interaksi berbasis...",
+                options: ["Online / Media Komunikasi Digital", "Surat Menyurat Konvensional", "Pertemuan Fisik Tatap Muka", "Sinyal Morse Radio"],
+                answer: 0,
+                explanation: "Masyarakat jaringan memanfaatkan media komunikasi online dan internet sehingga ruang dan waktu tidak lagi menjadi penghambat interaksi sosial."
+            }
+        ];
+
+        // State variables
+        let currentQuestionIdx = 0;
+        let score = 0;
+        let streak = 0;
+        let correctAnswersCount = 0;
+        let wrongAnswersCount = 0;
+        let userAnswers = []; // Records user responses for review
+        let isAnswered = false;
+
+        // Start Quiz
+        function startQuiz() {
+            playSound('click');
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('quiz-screen').classList.remove('hidden');
+            document.getElementById('quiz-screen').classList.add('flex');
+            
+            currentQuestionIdx = 0;
+            score = 0;
+            streak = 0;
+            correctAnswersCount = 0;
+            wrongAnswersCount = 0;
+            userAnswers = [];
+
+            updateHeaderStats();
+            loadQuestion();
+        }
+
+        // Update Header Stats
+        function updateHeaderStats() {
+            document.getElementById('question-number-badge').innerText = `${currentQuestionIdx + 1}/${questionsData.length}`;
+            document.getElementById('score-text').innerText = score;
+            document.getElementById('streak-count').innerText = streak;
+            
+            const progressPercent = ((currentQuestionIdx + 1) / questionsData.length) * 100;
+            document.getElementById('progress-bar').style.width = `${progressPercent}%`;
+        }
+
+        // Load Question
+        function loadQuestion() {
+            isAnswered = false;
+            const q = questionsData[currentQuestionIdx];
+
+            // Hide explanation
+            const expBox = document.getElementById('explanation-box');
+            expBox.classList.add('hidden');
+
+            // Render Question Text
+            document.getElementById('question-text').innerText = q.question;
+
+            // Render Options
+            const optionsGrid = document.getElementById('options-grid');
+            optionsGrid.innerHTML = '';
+
+            const optionPrefixes = ['A', 'B', 'C', 'D'];
+
+            q.options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = `option-btn-${idx} btn-quizizz text-left p-4 sm:p-5 rounded-2xl text-white font-semibold text-sm sm:text-base flex items-center justify-between border-b-4 cursor-pointer transition transform active:scale-98`;
+                btn.onclick = () => selectOption(idx);
+                btn.id = `opt-btn-${idx}`;
+                
+                btn.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <span class="w-8 h-8 rounded-xl bg-black/20 flex items-center justify-center font-bold text-xs sm:text-sm">
+                            ${optionPrefixes[idx]}
+                        </span>
+                        <span>${opt}</span>
+                    </div>
+                    <i class="fa-regular fa-circle text-white/50 opacity-0 btn-check-icon"></i>
+                `;
+                optionsGrid.appendChild(btn);
+            });
+        }
+
+        // Select Option Logic
+        function selectOption(selectedIdx) {
+            if (isAnswered) return;
+            isAnswered = true;
+
+            const q = questionsData[currentQuestionIdx];
+            const isCorrect = selectedIdx === q.answer;
+
+            // Save response record
+            userAnswers.push({
+                questionIdx: currentQuestionIdx,
+                selected: selectedIdx,
+                isCorrect: isCorrect
+            });
+
+            // Highlight buttons
+            const optionsGrid = document.getElementById('options-grid');
+            const buttons = optionsGrid.getElementsByTagName('button');
+
+            for (let i = 0; i < buttons.length; i++) {
+                buttons[i].disabled = true;
+                buttons[i].classList.remove('active:scale-98', 'cursor-pointer');
+                
+                if (i === q.answer) {
+                    if (selectedIdx === q.answer) {
+                        buttons[i].classList.add('correct-selected');
+                    } else {
+                        buttons[i].classList.add('correct-dimmed');
+                    }
+                } else if (i === selectedIdx && !isCorrect) {
+                    buttons[i].classList.add('wrong-selected');
+                } else {
+                    buttons[i].style.opacity = '0.5';
+                }
+            }
+
+            // Score and Streak calculation (Fixed base + streak bonus)
+            if (isCorrect) {
+                playSound('correct');
+                streak++;
+                correctAnswersCount++;
+                const streakBonus = streak * 50;
+                score += 1000 + streakBonus;
+            } else {
+                playSound('wrong');
+                streak = 0;
+                wrongAnswersCount++;
+            }
+
+            updateHeaderStats();
+            showExplanation(isCorrect);
+        }
+
+        // Show Explanation Box
+        function showExplanation(isCorrect) {
+            const expBox = document.getElementById('explanation-box');
+            const titleEl = document.getElementById('feedback-title');
+            const iconEl = document.getElementById('feedback-icon');
+            const textEl = document.getElementById('explanation-text');
+            const q = questionsData[currentQuestionIdx];
+
+            expBox.classList.remove('hidden', 'border-emerald-500', 'border-rose-500', 'bg-emerald-950/40', 'bg-rose-950/40');
+
+            if (isCorrect) {
+                expBox.classList.add('border-emerald-500', 'bg-emerald-950/40');
+                titleEl.innerText = "Jawaban Benar! 🎉";
+                titleEl.className = "title-font font-bold text-lg sm:text-xl text-emerald-400";
+                iconEl.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-400"></i>';
+            } else {
+                expBox.classList.add('border-rose-500', 'bg-rose-950/40');
+                titleEl.innerText = "Jawaban Kurang Tepat! ❌";
+                titleEl.className = "title-font font-bold text-lg sm:text-xl text-rose-400";
+                iconEl.innerHTML = '<i class="fa-solid fa-circle-xmark text-rose-400"></i>';
+            }
+
+            textEl.innerHTML = `<strong>Pembahasan:</strong> ${q.explanation}`;
+
+            // Adjust button label on last question
+            const nextBtn = document.getElementById('next-btn');
+            if (currentQuestionIdx === questionsData.length - 1) {
+                nextBtn.innerHTML = `<span>Lihat Hasil</span> <i class="fa-solid fa-trophy"></i>`;
+            } else {
+                nextBtn.innerHTML = `<span>Soal Berikutnya</span> <i class="fa-solid fa-arrow-right"></i>`;
+            }
+        }
+
+        // Next Question
+        function nextQuestion() {
+            playSound('click');
+            currentQuestionIdx++;
+
+            if (currentQuestionIdx < questionsData.length) {
+                loadQuestion();
+            } else {
+                showResults();
+            }
+        }
+
+        // Show Results Screen
+        function showResults() {
+            playSound('finish');
+            document.getElementById('quiz-screen').classList.add('hidden');
+            document.getElementById('quiz-screen').classList.remove('flex');
+            document.getElementById('result-screen').classList.remove('hidden');
+
+            const accuracy = Math.round((correctAnswersCount / questionsData.length) * 100);
+
+            document.getElementById('final-score').innerText = score;
+            document.getElementById('final-accuracy').innerText = `${accuracy}%`;
+            document.getElementById('final-correct').innerText = correctAnswersCount;
+            document.getElementById('final-wrong').innerText = wrongAnswersCount;
+
+            const subEl = document.getElementById('result-subtitle');
+            if (accuracy >= 80) {
+                subEl.innerText = "Luar Biasa! Kamu sangat menguasai materi Interaksi Masyarakat Abad ke-21 🌟";
+            } else if (accuracy >= 60) {
+                subEl.innerText = "Bagus! Kamu sudah memahami sebagian besar materi dengan baik 👍";
+            } else {
+                subEl.innerText = "Jangan berkecil hati! Pelajari kembali pembahasannya untuk memperdalam pemahaman 📚";
+            }
+
+            renderReviewList();
+        }
+
+        // Render Review List
+        function renderReviewList() {
+            const listEl = document.getElementById('review-list');
+            listEl.innerHTML = '';
+
+            questionsData.forEach((q, idx) => {
+                const userAns = userAnswers.find(u => u.questionIdx === idx);
+                const isCorrect = userAns ? userAns.isCorrect : false;
+                const selectedIdx = userAns ? userAns.selected : -1;
+
+                const item = document.createElement('div');
+                item.className = `p-4 rounded-2xl border ${isCorrect ? 'bg-emerald-950/30 border-emerald-500/40' : 'bg-rose-950/30 border-rose-500/40'}`;
+
+                let selectedText = selectedIdx >= 0 ? q.options[selectedIdx] : 'Tidak dijawab (Waktu Habis)';
+                let correctText = q.options[q.answer];
+
+                item.innerHTML = `
+                    <div class="flex items-start gap-3">
+                        <span class="w-6 h-6 rounded-full ${isCorrect ? 'bg-emerald-500' : 'bg-rose-500'} text-white font-bold text-xs flex items-center justify-center flex-shrink-0 mt-0.5">
+                            ${idx + 1}
+                        </span>
+                        <div class="space-y-1.5 w-full">
+                            <h5 class="font-bold text-sm sm:text-base text-white">${q.question}</h5>
+                            <div class="text-xs sm:text-sm space-y-1">
+                                <p class="${isCorrect ? 'text-emerald-300' : 'text-rose-300'}">
+                                    <span class="font-semibold">Jawaban Kamu:</span> ${selectedText}
+                                </p>
+                                ${!isCorrect ? `<p class="text-emerald-400 font-semibold"><span class="text-purple-200">Kunci Jawaban:</span> ${correctText}</p>` : ''}
+                            </div>
+                            <div class="text-xs text-purple-200 bg-purple-950/60 p-2.5 rounded-xl border border-purple-800/40 mt-2">
+                                <span class="font-bold text-yellow-300"><i class="fa-solid fa-lightbulb"></i> Pembahasan:</span> ${q.explanation}
+                            </div>
+                        </div>
+                    </div>
+                `;
+                listEl.appendChild(item);
+            });
+        }
+
+        // Toggle Review Mode
+        function toggleReviewMode() {
+            playSound('click');
+            const reviewSec = document.getElementById('review-section');
+            const btnText = document.getElementById('review-btn-text');
+
+            if (reviewSec.classList.contains('hidden')) {
+                reviewSec.classList.remove('hidden');
+                btnText.innerText = "Sembunyikan Pembahasan";
+            } else {
+                reviewSec.classList.add('hidden');
+                btnText.innerText = "Lihat Pembahasan Lengkap";
+            }
+        }
+
+        // Restart Quiz
+        function restartQuiz() {
+            playSound('click');
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('review-section').classList.add('hidden');
+            document.getElementById('review-btn-text').innerText = "Lihat Pembahasan Lengkap";
+            startQuiz();
+        }
+    </script>
+</body>
+</html>
